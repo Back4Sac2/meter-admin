@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,9 +14,9 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
+          response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
           );
         },
       },
@@ -24,19 +24,17 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const { pathname } = request.nextUrl;
+  const isLoginPage = request.nextUrl.pathname === '/admin/login';
 
-  const isLoginPage = pathname === '/admin/login';
-
-  if (!isLoginPage && !user) {
+  if (!user && !isLoginPage) {
     return NextResponse.redirect(new URL('/admin/login', request.url));
   }
 
-  if (isLoginPage && user) {
+  if (user && isLoginPage) {
     return NextResponse.redirect(new URL('/admin/meter', request.url));
   }
 
-  return supabaseResponse;
+  return response;
 }
 
 export const config = {

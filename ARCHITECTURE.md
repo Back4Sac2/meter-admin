@@ -34,7 +34,7 @@
 ## 인증 구조
 
 ```
-middleware.ts
+proxy.ts  (Next.js 16에서 middleware.ts 대신 사용)
   ├── /admin/login 이외의 모든 경로 → 미인증 시 /admin/login 리다이렉트
   └── /admin/login → 인증 상태면 /admin/meter 리다이렉트
 ```

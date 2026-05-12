@@ -9,7 +9,7 @@
 ## 핵심 파일 맵
 
 ```
-middleware.ts                          # 인증 보호 — 미인증 시 /admin/login 리다이렉트
+proxy.ts                               # 인증 보호 — 미인증 시 /admin/login 리다이렉트 (Next.js 16: middleware.ts → proxy.ts)
 app/
   admin/
     _actions.ts                        # loginAction, logoutAction (로그인 후 /admin/meter)
