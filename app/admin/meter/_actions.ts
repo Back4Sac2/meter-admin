@@ -33,6 +33,7 @@ export type MeterRecord = {
   water_pressure: string | null;
   meter_type: string | null;
   reading_method: string | null;
+  final_reading: string | null;
   lat: number | null;
   lng: number | null;
   created_at: string;
@@ -152,9 +153,52 @@ export async function getBlockList(): Promise<string[]> {
 export async function importFromExcel(block: string, rows: MeterInsert[]) {
   await requireAuth();
   const admin = createAdminClient();
-  await admin.from('meter_records').delete().eq('block', block);
-  const { error } = await admin.from('meter_records').insert(rows);
-  if (error) return { error: error.message };
+
+  const { data: existing } = await admin
+    .from('meter_records')
+    .select('id, row_no')
+    .eq('block', block);
+
+  const existingByRowNo = new Map(
+    (existing ?? [])
+      .filter((r): r is { id: number; row_no: string } => r.row_no != null)
+      .map((r) => [r.row_no, r.id]),
+  );
+
+  const toInsert: MeterInsert[] = [];
+  const toUpdate: { id: number; data: Partial<MeterInsert> }[] = [];
+
+  for (const row of rows) {
+    const existingId = row.row_no != null ? existingByRowNo.get(row.row_no) : undefined;
+    if (existingId != null) {
+      toUpdate.push({
+        id: existingId,
+        data: {
+          name: row.name,
+          address: row.address,
+          old_meter_number: row.old_meter_number,
+          final_reading: row.final_reading,
+          block: row.block,
+        },
+      });
+    } else {
+      toInsert.push(row);
+    }
+  }
+
+  if (toInsert.length > 0) {
+    const { error } = await admin.from('meter_records').insert(toInsert);
+    if (error) return { error: error.message };
+  }
+
+  if (toUpdate.length > 0) {
+    const results = await Promise.all(
+      toUpdate.map(({ id, data }) => admin.from('meter_records').update(data).eq('id', id)),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) return { error: failed.error.message };
+  }
+
   revalidatePath('/admin/meter');
   return { success: true };
 }
@@ -263,6 +307,17 @@ export async function getMeterRecordsForMap(block?: string, status?: StatusFilte
   }
   const { data } = await query;
   return (data ?? []) as MeterRecord[];
+}
+
+export async function getBlockRowNos(block: string): Promise<string[]> {
+  await requireAuth();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('meter_records')
+    .select('row_no')
+    .eq('block', block)
+    .not('row_no', 'is', null);
+  return (data ?? []).map((r: { row_no: string }) => r.row_no);
 }
 
 export async function getUngeocodedRecords(block?: string): Promise<Pick<MeterRecord, 'id' | 'address'>[]> {

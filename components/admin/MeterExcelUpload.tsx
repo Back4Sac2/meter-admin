@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition } from 'react';
 import * as XLSX from 'xlsx';
 import { X, Upload, ChevronRight } from 'lucide-react';
-import { importFromExcel, type MeterInsert } from '@/app/admin/meter/_actions';
+import { importFromExcel, getBlockRowNos, type MeterInsert } from '@/app/admin/meter/_actions';
 
 // ─── 기존 형식 (금산군수용가조사기록지) ───────────────────────────────────────
 const EXCEL_MAP_OLD: Record<string, keyof MeterInsert> = {
@@ -47,6 +47,7 @@ const DB_COL = {
   FLOOR: 37,        // AL: 건물층수
   NOTE: 39,         // AN: 기타내용
   BLOCK: 48,        // AW: 소블록
+  FINAL_READING: 8, // I: 지침(최종)
 } as const;
 
 const PREVIEW_COLS: { key: keyof MeterInsert; label: string }[] = [
@@ -77,6 +78,7 @@ export default function MeterExcelUpload({ onClose }: Props) {
   const [blockOptions, setBlockOptions] = useState<string[]>([]);
   const [selectedBlock, setSelectedBlock] = useState('');
   const [filteredRows, setFilteredRows] = useState<MeterInsert[]>([]);
+  const [existingRowNos, setExistingRowNos] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [format, setFormat] = useState<'old' | 'daebul'>('old');
   const [isPending, startTransition] = useTransition();
@@ -156,6 +158,7 @@ export default function MeterExcelUpload({ onClose }: Props) {
           usage_type: str(row[DB_COL.USAGE_TYPE]),
           floor: str(row[DB_COL.FLOOR]),
           note: str(row[DB_COL.NOTE]),
+          final_reading: str(row[DB_COL.FINAL_READING]),
           survey_date: null,
           image1_id: null,
           image2_id: null,
@@ -247,8 +250,13 @@ export default function MeterExcelUpload({ onClose }: Props) {
 
   function handleBlockConfirm() {
     if (!selectedBlock) return;
-    setFilteredRows(allRows.filter((r) => r.block === selectedBlock));
-    setStep(3);
+    const rows = allRows.filter((r) => r.block === selectedBlock);
+    setFilteredRows(rows);
+    startTransition(async () => {
+      const existing = await getBlockRowNos(selectedBlock);
+      setExistingRowNos(new Set(existing));
+      setStep(3);
+    });
   }
 
   function handleImport() {
@@ -362,12 +370,25 @@ export default function MeterExcelUpload({ onClose }: Props) {
 
           {step === 3 && (
             <div>
-              <p className="text-zinc-400 text-sm mb-3">
-                <span className="text-emerald-400 font-mono font-semibold">{selectedBlock}</span>{' '}
-                블록의 <span className="text-white font-semibold">{filteredRows.length}개</span>{' '}
-                레코드를 가져옵니다.
-                <span className="text-zinc-600 ml-2 text-xs">기존 데이터는 덮어씁니다.</span>
-              </p>
+              {(() => {
+                const newRows = filteredRows.filter((r) => !r.row_no || !existingRowNos.has(r.row_no));
+                const updateRows = filteredRows.filter((r) => r.row_no && existingRowNos.has(r.row_no));
+                return (
+                  <>
+                    <div className="flex gap-2 mb-4">
+                      <div className="flex-1 bg-emerald-400/10 border border-emerald-400/20 rounded-lg px-4 py-3 text-center">
+                        <p className="text-2xl font-bold text-emerald-400">{newRows.length}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">신규 추가</p>
+                      </div>
+                      <div className="flex-1 bg-blue-400/10 border border-blue-400/20 rounded-lg px-4 py-3 text-center">
+                        <p className="text-2xl font-bold text-blue-400">{updateRows.length}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">기본정보 업데이트</p>
+                        <p className="text-[10px] text-zinc-600 mt-0.5">조사 데이터 보존</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
               <div className="overflow-x-auto rounded-lg border border-zinc-800">
                 <table className="w-full text-xs">
                   <thead>
@@ -384,16 +405,25 @@ export default function MeterExcelUpload({ onClose }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRows.slice(0, 10).map((row, i) => (
-                      <tr key={i} className="border-b border-zinc-800 last:border-0">
-                        <td className="px-3 py-2 text-zinc-600">{i + 1}</td>
-                        {PREVIEW_COLS.map((c) => (
-                          <td key={c.key} className="px-3 py-2 text-zinc-300 whitespace-nowrap">
-                            {(row[c.key] as string) ?? '-'}
+                    {filteredRows.slice(0, 10).map((row, i) => {
+                      const isExisting = row.row_no != null && existingRowNos.has(row.row_no);
+                      return (
+                        <tr key={i} className="border-b border-zinc-800 last:border-0">
+                          <td className="px-3 py-2 text-zinc-600">{i + 1}</td>
+                          {PREVIEW_COLS.map((c) => (
+                            <td key={c.key} className="px-3 py-2 text-zinc-300 whitespace-nowrap">
+                              {(row[c.key] as string) ?? '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-2">
+                            {isExisting
+                              ? <span className="text-[10px] font-semibold text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded-full">업데이트</span>
+                              : <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">신규</span>
+                            }
                           </td>
-                        ))}
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

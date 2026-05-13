@@ -8,7 +8,7 @@ const STORAGE_BASE = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
 const thumbnailUrl = (path: string) => `${STORAGE_BASE}/${path}`;
 const viewUrl = (path: string) => `${STORAGE_BASE}/${path}`;
 
-const LOCATION_DETAIL_OPTIONS = ['건물앞', '건물뒤', '건물좌', '건물우', '입구좌', '입구우', '기타'];
+const LOCATION_DETAIL_OPTIONS = ['건물앞', '건물뒤', '건물좌', '건물우', '입구좌', '입구우', '대문좌측', '대문우측', '기타'];
 
 function parseLocationInit(val: string | null) {
   if (!val) return { inOut: '' as '' | '옥내' | '옥외', detail: '', custom: '' };
@@ -434,6 +434,14 @@ export default function MeterEditModal({ record, onClose }: Props) {
               })}
             </div>
           </div>
+
+          {/* 최종지침 (대불 형식에서 가져온 참조값, 읽기전용) */}
+          {record.final_reading != null && (
+            <div className="px-3 py-2.5 bg-zinc-800/60 border border-zinc-700 rounded-lg flex items-center justify-between">
+              <span className="text-xs text-zinc-500">최종지침 (참조)</span>
+              <span className="font-mono text-base font-bold text-amber-400">{record.final_reading}</span>
+            </div>
+          )}
 
           {/* 지침 + 봉인유무 */}
           <div className="flex gap-3">
