@@ -435,26 +435,26 @@ export default function MeterEditModal({ record, onClose }: Props) {
             </div>
           </div>
 
-          {/* 최종지침 (대불 형식에서 가져온 참조값, 읽기전용) */}
-          {record.final_reading != null && (
-            <div className="px-3 py-2.5 bg-zinc-800/60 border border-zinc-700 rounded-lg flex items-center justify-between">
-              <span className="text-xs text-zinc-500">최종지침 (참조)</span>
-              <span className="font-mono text-base font-bold text-amber-400">{record.final_reading}</span>
-            </div>
-          )}
-
           {/* 지침 + 봉인유무 */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className={labelCls}>지침</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="숫자 입력"
-                value={(values.reading as string) ?? ''}
-                onChange={(e) => set('reading', e.target.value || null)}
-                className={inputCls}
-              />
+              <div className="flex gap-2 items-center">
+                {record.final_reading != null && (
+                  <div className="shrink-0 px-3 py-2 bg-zinc-800/60 border border-zinc-700 rounded-lg text-center min-w-[72px]">
+                    <p className="text-[10px] text-zinc-500 mb-0.5">최종지침</p>
+                    <p className="font-mono text-base font-bold text-amber-400 leading-none">{record.final_reading}</p>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="숫자 입력"
+                  value={(values.reading as string) ?? ''}
+                  onChange={(e) => set('reading', e.target.value || null)}
+                  className={inputCls}
+                />
+              </div>
             </div>
             <div className="shrink-0">
               <label className={labelCls}>봉인여부</label>

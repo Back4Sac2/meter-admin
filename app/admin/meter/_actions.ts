@@ -192,11 +192,13 @@ export async function importFromExcel(block: string, rows: MeterInsert[]) {
   }
 
   if (toUpdate.length > 0) {
-    const results = await Promise.all(
-      toUpdate.map(({ id, data }) => admin.from('meter_records').update(data).eq('id', id)),
-    );
-    const failed = results.find((r) => r.error);
-    if (failed?.error) return { error: failed.error.message };
+    const { error } = await admin
+      .from('meter_records')
+      .upsert(
+        toUpdate.map(({ id, data }) => ({ id, ...data })),
+        { onConflict: 'id', ignoreDuplicates: false },
+      );
+    if (error) return { error: error.message };
   }
 
   revalidatePath('/admin/meter');
