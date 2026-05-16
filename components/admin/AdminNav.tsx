@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, LogOut, FileSpreadsheet } from 'lucide-react';
+import { ClipboardList, LogOut, FileSpreadsheet, FolderTree } from 'lucide-react';
 import { logoutAction } from '@/app/admin/_actions';
 
 const NAV_ITEMS = [
   { href: '/admin/meter', label: '야장관리', icon: ClipboardList },
   { href: '/admin/meter-excel', label: '엑셀관리자', icon: FileSpreadsheet },
+  { href: '/admin/regions', label: '분류관리', icon: FolderTree },
 ];
 
 export function AdminSidebar() {

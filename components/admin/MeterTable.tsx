@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Pencil, Upload, Download, ChevronLeft, ChevronRight, Search, X, Camera, ChevronUp, ChevronDown, ChevronsUpDown, Copy, Check, RefreshCw, MapPin, List, Map, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { type MeterRecord, type SortCol, type SortDir, type StatusFilter, getCompletedRecords } from '@/app/admin/meter/_actions';
+import { type RegionWithBlocks } from '@/app/admin/regions/_actions';
 import MeterExcelUpload from './MeterExcelUpload';
 import MeterEditModal from './MeterEditModal';
 import MeterMapView from './MeterMapView';
@@ -13,6 +14,8 @@ type Props = {
   records: MeterRecord[];
   blocks: string[];
   selectedBlock: string | null;
+  regions: RegionWithBlocks[];
+  selectedRegion: string | null;
   search: string;
   total: number;
   page: number;
@@ -50,6 +53,8 @@ export default function MeterTable({
   records,
   blocks,
   selectedBlock,
+  regions,
+  selectedRegion,
   search,
   total,
   page,
@@ -207,6 +212,7 @@ export default function MeterTable({
     newStatus?: StatusFilter | null,
     newDateFrom?: string,
     newDateTo?: string,
+    newRegion?: string | null,
   ) {
     const params = new URLSearchParams();
     const b = newBlock !== undefined ? newBlock : selectedBlock;
@@ -216,6 +222,8 @@ export default function MeterTable({
     const st = newStatus !== undefined ? newStatus : status;
     const df = newDateFrom !== undefined ? newDateFrom : filterDateFrom;
     const dt = newDateTo !== undefined ? newDateTo : filterDateTo;
+    const rg = newRegion !== undefined ? newRegion : selectedRegion;
+    if (rg) params.set('region', rg);
     if (b) params.set('block', b);
     if (q) params.set('q', q);
     if (newPage > 1) params.set('page', String(newPage));
@@ -225,6 +233,11 @@ export default function MeterTable({
     if (dt) params.set('dateTo', dt);
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function handleRegion(regionId: string | null) {
+    // 지역 변경 시 블록 선택 초기화
+    navigate(1, null, undefined, undefined, undefined, undefined, undefined, undefined, regionId);
   }
 
   function handleSort(col: SortCol) {
@@ -266,8 +279,43 @@ export default function MeterTable({
 
   const isEmpty = records.length === 0;
 
+  // 지역 선택 시 해당 지역 블록만 표시
+  const regionBlockSet = selectedRegion
+    ? new Set(regions.find((r) => r.id === selectedRegion)?.blocks ?? [])
+    : null;
+  const visibleBlocks = regionBlockSet ? blocks.filter((b) => regionBlockSet.has(b)) : blocks;
+
   return (
     <div>
+      {/* 지역 필터 */}
+      {regions.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          <span className="text-xs text-zinc-600 mr-1">지역</span>
+          <button
+            onClick={() => handleRegion(null)}
+            className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+              !selectedRegion
+                ? 'bg-indigo-500 text-white font-semibold'
+                : 'bg-zinc-800 text-zinc-400 hover:text-white'
+            }`}
+          >
+            전체
+          </button>
+          {regions.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => handleRegion(r.id)}
+              className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                selectedRegion === r.id
+                  ? 'bg-indigo-500 text-white font-semibold'
+                  : 'bg-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              {r.name}
+            </button>
+          ))}
+        </div>
+      )}
       {/* 블록 필터 + 업로드 */}
       <div className="flex items-center gap-1.5 mb-3 flex-wrap">
         <button
@@ -280,7 +328,7 @@ export default function MeterTable({
         >
           전체
         </button>
-        {blocks.map((b) => (
+        {visibleBlocks.map((b) => (
           <button
             key={b}
             onClick={() => navigate(1, b)}

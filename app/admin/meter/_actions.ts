@@ -73,6 +73,7 @@ export async function getMeterRecords(
   status?: StatusFilter,
   dateFrom?: string,
   dateTo?: string,
+  blockIn?: string[],
 ) {
   const admin = createAdminClient();
   const asc = sortDir === 'asc';
@@ -90,7 +91,12 @@ export async function getMeterRecords(
     .not('sealed', 'is', null).not('location', 'is', null)
     .not('usage_type', 'is', null).not('floor', 'is', null);
 
-  if (block) {
+  if (blockIn && blockIn.length > 0) {
+    mainQuery = mainQuery.in('block', blockIn);
+    totalQuery = totalQuery.in('block', blockIn);
+    closedQuery = closedQuery.in('block', blockIn);
+    processedQuery = processedQuery.in('block', blockIn);
+  } else if (block) {
     mainQuery = mainQuery.eq('block', block);
     totalQuery = totalQuery.eq('block', block);
     closedQuery = closedQuery.eq('block', block);
