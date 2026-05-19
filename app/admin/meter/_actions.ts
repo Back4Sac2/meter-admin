@@ -151,9 +151,8 @@ export async function getMeterRecords(
 
 export async function getBlockList(): Promise<string[]> {
   const admin = createAdminClient();
-  const { data } = await admin.from('meter_records').select('block').order('block');
-  const all = (data ?? []).map((r: { block: string }) => r.block);
-  return [...new Set(all)];
+  const { data } = await admin.from('block_regions').select('block').order('block');
+  return (data ?? []).map((r: { block: string }) => r.block);
 }
 
 export async function importFromExcel(block: string, rows: MeterInsert[]) {
@@ -206,6 +205,9 @@ export async function importFromExcel(block: string, rows: MeterInsert[]) {
       );
     if (error) return { error: error.message };
   }
+
+  // 새 블록이면 block_regions에 미분류(region_id=null)로 등록
+  await admin.from('block_regions').upsert({ block }, { onConflict: 'block', ignoreDuplicates: true });
 
   revalidatePath('/admin/meter');
   return { success: true };

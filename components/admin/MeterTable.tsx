@@ -291,16 +291,6 @@ export default function MeterTable({
       {regions.length > 0 && (
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <span className="text-xs text-zinc-600 mr-1">지역</span>
-          <button
-            onClick={() => handleRegion(null)}
-            className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-              !selectedRegion
-                ? 'bg-indigo-500 text-white font-semibold'
-                : 'bg-zinc-800 text-zinc-400 hover:text-white'
-            }`}
-          >
-            전체
-          </button>
           {regions.map((r) => (
             <button
               key={r.id}
