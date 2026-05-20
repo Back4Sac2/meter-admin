@@ -225,7 +225,6 @@ export default function MeterEditModal({ record, onClose }: Props) {
   const initLoc = parseLocationInit(record.location);
 
   const [meterSame, setMeterSame] = useState(isSameInit);
-  const [isHopye, setIsHopye] = useState(record.note === '호폐');
   const [extraOpen, setExtraOpen] = useState(false);
   const [usageTypeSelect, setUsageTypeSelect] = useState(initUsageSelect(record.usage_type));
   const [usageTypeCustom, setUsageTypeCustom] = useState(initUsageCustom(record.usage_type));
@@ -581,29 +580,34 @@ export default function MeterEditModal({ record, onClose }: Props) {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-zinc-400">비고</label>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isHopye}
-                  onChange={(e) => {
-                    setIsHopye(e.target.checked);
-                    set('note', e.target.checked ? '호폐' : null);
-                  }}
-                  className="w-4 h-4 accent-amber-400"
-                />
-                <span className="text-sm font-semibold text-amber-400">호폐</span>
-              </label>
+              <div className="flex items-center gap-1.5">
+                {(['호폐', '위치불명'] as const).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => set('note', values.note === preset ? null : preset)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                      values.note === preset
+                        ? preset === '호폐'
+                          ? 'bg-amber-400 border-amber-400 text-zinc-950'
+                          : 'bg-orange-400 border-orange-400 text-zinc-950'
+                        : preset === '호폐'
+                          ? 'bg-zinc-800 border-zinc-700 text-amber-400 hover:text-amber-300'
+                          : 'bg-zinc-800 border-zinc-700 text-orange-400 hover:text-orange-300'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
             </div>
             <input
               type="text"
               value={(values.note as string) ?? ''}
-              onChange={(e) => {
-                set('note', e.target.value || null);
-                setIsHopye(e.target.value === '호폐');
-              }}
-              disabled={isHopye}
-              placeholder={isHopye ? '' : '비고 입력'}
-              className={`${inputCls} ${isHopye ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onChange={(e) => set('note', e.target.value || null)}
+              disabled={values.note === '호폐' || values.note === '위치불명'}
+              placeholder={values.note === '호폐' || values.note === '위치불명' ? '' : '비고 직접 입력'}
+              className={`${inputCls} ${values.note === '호폐' || values.note === '위치불명' ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
 

@@ -2,11 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Pencil, Upload, Download, ChevronLeft, ChevronRight, Search, X, Camera, ChevronUp, ChevronDown, ChevronsUpDown, Copy, Check, RefreshCw, MapPin, List, Map, Calendar } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { type MeterRecord, type SortCol, type SortDir, type StatusFilter, getCompletedRecords } from '@/app/admin/meter/_actions';
+import { Pencil, Download, ChevronLeft, ChevronRight, Search, X, Camera, ChevronUp, ChevronDown, ChevronsUpDown, Copy, Check, RefreshCw, MapPin, List, Map, Calendar } from 'lucide-react';
+import { type MeterRecord, type SortCol, type SortDir, type StatusFilter } from '@/app/admin/meter/_actions';
 import { type RegionWithBlocks } from '@/app/admin/regions/_actions';
-import MeterExcelUpload from './MeterExcelUpload';
 import MeterEditModal from './MeterEditModal';
 import MeterMapView from './MeterMapView';
 
@@ -43,7 +41,7 @@ function Val({ value }: { value: string | null }) {
 }
 
 function getStatus(r: MeterRecord): 'processed' | 'unprocessed' | 'closed' {
-  if (r.note === '호폐') return 'closed';
+  if (r.note === '호폐' || r.note === '위치불명') return 'closed';
   if (r.meter_number && r.reading && r.sealed && r.location && r.usage_type && r.floor) return 'processed';
   return 'unprocessed';
 }
@@ -71,12 +69,10 @@ export default function MeterTable({
   const router = useRouter();
   const pathname = usePathname();
   const [editingRecord, setEditingRecord] = useState<MeterRecord | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadDateFrom, setDownloadDateFrom] = useState('');
   const [downloadDateTo, setDownloadDateTo] = useState('');
   const [downloadBlock, setDownloadBlock] = useState('');
-  const [isDownloading, setIsDownloading] = useState(false);
   const [isImageDownloading, setIsImageDownloading] = useState(false);
   const [imageProgress, setImageProgress] = useState<{ current: number; total: number } | null>(null);
   const [filterDateFrom, setFilterDateFrom] = useState(dateFrom);
@@ -90,34 +86,6 @@ export default function MeterTable({
     setIsRefreshing(true);
     router.refresh();
     setTimeout(() => setIsRefreshing(false), 800);
-  }
-
-  async function handleDownload(dateFrom?: string, dateTo?: string) {
-    setIsDownloading(true);
-    try {
-      const rows = await getCompletedRecords(dateFrom, dateTo);
-      if (rows.length === 0) { alert('해당 기간에 처리된 데이터가 없습니다.'); return; }
-      const headers = ['블록', '도면번호', '성명', '도로명주소', '기물번호(기존)', '기물번호', '지침', '봉인유무', '위치', '사용형태', '층수', '비고', '조사일자', '보호통뚜껑양식', '급수방식', '계량기상태', '상태'];
-      const sheetData = [
-        headers,
-        ...rows.map((r) => [
-          r.block, r.row_no ?? '', r.name ?? '', r.address ?? '',
-          r.old_meter_number ?? '', r.meter_number ?? '', r.reading ?? '',
-          r.sealed ?? '', r.location ?? '', r.usage_type ?? '', r.floor ?? '',
-          r.note ?? '', r.survey_date?.slice(0, 10) ?? '', r.cover_type ?? '',
-          r.water_supply_type ?? '', r.meter_condition ?? '',
-          r.note === '호폐' ? '호폐' : '처리됨',
-        ]),
-      ];
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length * 2, 12) }));
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '처리결과');
-      const label = dateFrom && dateTo ? `${dateFrom}~${dateTo}` : (dateFrom ?? dateTo ?? new Date().toISOString().slice(0, 10));
-      XLSX.writeFile(wb, `야장결과_${label}.xlsx`);
-    } finally {
-      setIsDownloading(false);
-    }
   }
 
   async function handleImageDownload(dateFrom?: string, dateTo?: string, block?: string) {
@@ -365,14 +333,6 @@ export default function MeterTable({
             <span className="hidden sm:inline">다운로드</span>
             <span className="sm:hidden">다운로드</span>
           </button>
-          <button
-            onClick={() => setShowUpload(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-400 text-zinc-950 font-semibold text-sm rounded-lg hover:bg-emerald-300 transition-colors"
-          >
-            <Upload size={14} />
-            <span className="hidden sm:inline">엑셀 업로드</span>
-            <span className="sm:hidden">업로드</span>
-          </button>
         </div>
       </div>
 
@@ -382,7 +342,7 @@ export default function MeterTable({
           { s: null,            label: '전체',    count: processedCount + unprocessedCount + closedCount, cls: 'bg-zinc-700 text-white' },
           { s: 'processed',     label: '처리됨',  count: processedCount,   cls: 'bg-emerald-400 text-zinc-950' },
           { s: 'unprocessed',   label: '미처리',  count: unprocessedCount, cls: 'bg-zinc-400 text-zinc-950' },
-          { s: 'closed',        label: '호폐',    count: closedCount,      cls: 'bg-amber-400 text-zinc-950' },
+          { s: 'closed',        label: '종결',    count: closedCount,      cls: 'bg-amber-400 text-zinc-950' },
         ] as { s: StatusFilter | null; label: string; count: number; cls: string }[]).map(({ s, label, count, cls }) => (
           <button
             key={String(s)}
@@ -538,7 +498,7 @@ export default function MeterTable({
                       </button>
                       <div className="flex items-center gap-2 px-2 mt-0.5">
                         {getStatus(r) === 'processed' && <span className="text-[10px] text-emerald-400 font-bold">✓</span>}
-                        {getStatus(r) === 'closed' && <span className="text-[10px] text-amber-400 font-bold">호폐</span>}
+                        {getStatus(r) === 'closed' && <span className="text-[10px] text-amber-400 font-bold">{r.note}</span>}
                         {(r.image1_id || r.image2_id || r.image3_id || r.image4_id) && (
                           <span className="flex items-center gap-1">
                             <Camera size={10} className="text-emerald-400" />
@@ -616,7 +576,7 @@ export default function MeterTable({
                             <span className="shrink-0 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">완료</span>
                           )}
                           {st === 'closed' && (
-                            <span className="shrink-0 text-[10px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">호폐</span>
+                            <span className="shrink-0 text-[10px] font-semibold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">{r.note}</span>
                           )}
                           {r.meter_number && (
                             <span className="text-zinc-300 text-xs font-mono truncate">{r.meter_number}</span>
@@ -758,14 +718,6 @@ export default function MeterTable({
             </div>
             <div className="flex flex-col gap-2">
               <button
-                onClick={async () => { setShowDownloadModal(false); await handleDownload(downloadDateFrom || undefined, downloadDateTo || undefined); }}
-                disabled={isDownloading}
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-semibold text-sm rounded-lg disabled:opacity-50 transition-colors"
-              >
-                {isDownloading ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-                엑셀 다운로드
-              </button>
-              <button
                 onClick={async () => { setShowDownloadModal(false); await handleImageDownload(downloadDateFrom || undefined, downloadDateTo || undefined, downloadBlock || undefined); }}
                 disabled={isImageDownloading}
                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-semibold text-sm rounded-lg disabled:opacity-50 transition-colors"
@@ -795,7 +747,6 @@ export default function MeterTable({
       {editingRecord && (
         <MeterEditModal record={editingRecord} onClose={() => setEditingRecord(null)} />
       )}
-      {showUpload && <MeterExcelUpload onClose={() => setShowUpload(false)} />}
     </div>
   );
 }

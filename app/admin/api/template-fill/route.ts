@@ -52,6 +52,14 @@ const DB = {
   REPLACEMENT: "V",
 } as const;
 
+// 기존(금산) 형식: 옥내(건물앞) → 건물앞(옥내)
+function reverseLocation(loc: string | null | undefined): string | null {
+  if (!loc) return null;
+  const m = loc.match(/^(옥내|옥외)\((.+)\)$/);
+  if (m) return `${m[2]}(${m[1]})`;
+  return loc;
+}
+
 function xmlEscape(s: string): string {
   return s
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
@@ -190,7 +198,7 @@ export async function POST(req: NextRequest) {
     .from("meter_records")
     .select("*")
     .or(
-      "meter_number.not.is.null,reading.not.is.null,sealed.not.is.null,location.not.is.null,usage_type.not.is.null,floor.not.is.null,note.eq.호폐"
+      "meter_number.not.is.null,reading.not.is.null,sealed.not.is.null,location.not.is.null,usage_type.not.is.null,floor.not.is.null,note.eq.호폐,note.eq.위치불명"
     )
     .order("block", { ascending: true })
     .order("row_no", { ascending: true, nullsFirst: false })
@@ -219,7 +227,7 @@ export async function POST(req: NextRequest) {
 
   // 완료 여부 판단 — filled 카운트에만 사용
   function isCompleted(r: MeterRecord): boolean {
-    if (r.note === "호폐") return true;
+    if (r.note === "호폐" || r.note === "위치불명") return true;
     return !!(
       r.meter_number &&
       r.reading &&
@@ -405,7 +413,7 @@ export async function POST(req: NextRequest) {
         set(C.SEALED, rec.sealed);
         set(C.METER_COND, rec.meter_condition);
         set(C.BOX_COND, rec.cover_type);
-        set(C.LOCATION, rec.location);
+        set(C.LOCATION, reverseLocation(rec.location));
         set(C.USAGE_TYPE, rec.usage_type);
         set(C.FLOOR, rec.floor);
         set(C.NOTE, rec.note);

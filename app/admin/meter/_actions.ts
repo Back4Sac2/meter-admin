@@ -60,8 +60,8 @@ const ALL_FILLED =
 // 하나라도 비어있음
 const ANY_EMPTY =
   'meter_number.is.null,reading.is.null,sealed.is.null,location.is.null,usage_type.is.null,floor.is.null';
-// 호폐 아님 (null 포함)
-const NOT_CLOSED = 'note.is.null,note.neq.호폐';
+// 종결(호폐/위치불명) 아님 (null 포함)
+const NOT_CLOSED = 'note.is.null,note.neq.호폐,note.neq.위치불명';
 
 export async function getMeterRecords(
   page: number,
@@ -85,7 +85,7 @@ export async function getMeterRecords(
     .range((page - 1) * pageSize, page * pageSize - 1);
 
   let totalQuery = admin.from('meter_records').select('*', { count: 'exact', head: true });
-  let closedQuery = admin.from('meter_records').select('*', { count: 'exact', head: true }).eq('note', '호폐');
+  let closedQuery = admin.from('meter_records').select('*', { count: 'exact', head: true }).or('note.eq.호폐,note.eq.위치불명');
   let processedQuery = admin.from('meter_records').select('*', { count: 'exact', head: true })
     .or(NOT_CLOSED).not('meter_number', 'is', null).not('reading', 'is', null)
     .not('sealed', 'is', null).not('location', 'is', null)
@@ -113,7 +113,7 @@ export async function getMeterRecords(
 
   // 상태 필터는 메인 쿼리에만 적용
   if (status === 'closed') {
-    mainQuery = mainQuery.eq('note', '호폐');
+    mainQuery = mainQuery.or('note.eq.호폐,note.eq.위치불명');
   } else if (status === 'processed') {
     mainQuery = mainQuery.or(NOT_CLOSED).not('meter_number', 'is', null)
       .not('reading', 'is', null).not('sealed', 'is', null)
