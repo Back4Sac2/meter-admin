@@ -54,14 +54,12 @@ export type SortDir = 'asc' | 'desc';
 
 export type StatusFilter = 'processed' | 'unprocessed' | 'closed';
 
-// 6개 필드 전부 입력 AND 호폐 아님
-const ALL_FILLED =
-  'meter_number.not.is.null,reading.not.is.null,sealed.not.is.null,location.not.is.null,usage_type.not.is.null,floor.not.is.null';
 // 하나라도 비어있음
 const ANY_EMPTY =
   'meter_number.is.null,reading.is.null,sealed.is.null,location.is.null,usage_type.is.null,floor.is.null';
-// 종결(호폐/위치불명) 아님 (null 포함)
-const NOT_CLOSED = 'note.is.null,note.neq.호폐,note.neq.위치불명';
+// 종결(호폐/위치불명) 아님 — note가 null이거나 closed 목록에 없는 경우
+// note.is.null: null 허용 / note.not.in.(...): 호폐·위치불명 제외
+const NOT_CLOSED = 'note.is.null,note.not.in.(호폐,위치불명)';
 
 export async function getMeterRecords(
   page: number,
@@ -84,30 +82,31 @@ export async function getMeterRecords(
     .order(sortCol, { ascending: asc, nullsFirst: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
 
-  let totalQuery = admin.from('meter_records').select('*', { count: 'exact', head: true });
-  let closedQuery = admin.from('meter_records').select('*', { count: 'exact', head: true }).or('note.eq.호폐,note.eq.위치불명');
+  let totalQuery     = admin.from('meter_records').select('*', { count: 'exact', head: true });
+  let closedQuery    = admin.from('meter_records').select('*', { count: 'exact', head: true }).or('note.eq.호폐,note.eq.위치불명');
   let processedQuery = admin.from('meter_records').select('*', { count: 'exact', head: true })
-    .or(NOT_CLOSED).not('meter_number', 'is', null).not('reading', 'is', null)
+    .or(NOT_CLOSED)
+    .not('meter_number', 'is', null).not('reading', 'is', null)
     .not('sealed', 'is', null).not('location', 'is', null)
     .not('usage_type', 'is', null).not('floor', 'is', null);
 
   if (blockIn && blockIn.length > 0) {
-    mainQuery = mainQuery.in('block', blockIn);
-    totalQuery = totalQuery.in('block', blockIn);
-    closedQuery = closedQuery.in('block', blockIn);
+    mainQuery      = mainQuery.in('block', blockIn);
+    totalQuery     = totalQuery.in('block', blockIn);
+    closedQuery    = closedQuery.in('block', blockIn);
     processedQuery = processedQuery.in('block', blockIn);
   } else if (block) {
-    mainQuery = mainQuery.eq('block', block);
-    totalQuery = totalQuery.eq('block', block);
-    closedQuery = closedQuery.eq('block', block);
+    mainQuery      = mainQuery.eq('block', block);
+    totalQuery     = totalQuery.eq('block', block);
+    closedQuery    = closedQuery.eq('block', block);
     processedQuery = processedQuery.eq('block', block);
   }
   if (search) {
     const term = `%${search}%`;
     const sf = `row_no.ilike.${term},address.ilike.${term},old_meter_number.ilike.${term}`;
-    mainQuery = mainQuery.or(sf);
-    totalQuery = totalQuery.or(sf);
-    closedQuery = closedQuery.or(sf);
+    mainQuery      = mainQuery.or(sf);
+    totalQuery     = totalQuery.or(sf);
+    closedQuery    = closedQuery.or(sf);
     processedQuery = processedQuery.or(sf);
   }
 
@@ -115,24 +114,25 @@ export async function getMeterRecords(
   if (status === 'closed') {
     mainQuery = mainQuery.or('note.eq.호폐,note.eq.위치불명');
   } else if (status === 'processed') {
-    mainQuery = mainQuery.or(NOT_CLOSED).not('meter_number', 'is', null)
-      .not('reading', 'is', null).not('sealed', 'is', null)
-      .not('location', 'is', null).not('usage_type', 'is', null).not('floor', 'is', null);
+    mainQuery = mainQuery.or(NOT_CLOSED)
+      .not('meter_number', 'is', null).not('reading', 'is', null)
+      .not('sealed', 'is', null).not('location', 'is', null)
+      .not('usage_type', 'is', null).not('floor', 'is', null);
   } else if (status === 'unprocessed') {
     mainQuery = mainQuery.or(NOT_CLOSED).or(ANY_EMPTY);
   }
 
   if (dateFrom) {
-    mainQuery     = mainQuery.gte('survey_date', dateFrom);
-    totalQuery    = totalQuery.gte('survey_date', dateFrom);
-    closedQuery   = closedQuery.gte('survey_date', dateFrom);
+    mainQuery      = mainQuery.gte('survey_date', dateFrom);
+    totalQuery     = totalQuery.gte('survey_date', dateFrom);
+    closedQuery    = closedQuery.gte('survey_date', dateFrom);
     processedQuery = processedQuery.gte('survey_date', dateFrom);
   }
   if (dateTo) {
     const nd = nextDay(dateTo);
-    mainQuery     = mainQuery.lt('survey_date', nd);
-    totalQuery    = totalQuery.lt('survey_date', nd);
-    closedQuery   = closedQuery.lt('survey_date', nd);
+    mainQuery      = mainQuery.lt('survey_date', nd);
+    totalQuery     = totalQuery.lt('survey_date', nd);
+    closedQuery    = closedQuery.lt('survey_date', nd);
     processedQuery = processedQuery.lt('survey_date', nd);
   }
 
