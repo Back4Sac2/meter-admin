@@ -330,8 +330,7 @@ export default function MeterTable({
             className="flex items-center gap-1.5 px-4 py-2 bg-zinc-700 text-zinc-200 font-semibold text-sm rounded-lg hover:bg-zinc-600 transition-colors"
           >
             <Download size={14} />
-            <span className="hidden sm:inline">다운로드</span>
-            <span className="sm:hidden">다운로드</span>
+            이미지 다운로드
           </button>
         </div>
       </div>
@@ -676,7 +675,7 @@ export default function MeterTable({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowDownloadModal(false)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-semibold text-sm">다운로드</h3>
+              <h3 className="text-white font-semibold text-sm">이미지 다운로드</h3>
               <button onClick={() => setShowDownloadModal(false)} className="text-zinc-500 hover:text-white transition-colors">
                 <X size={16} />
               </button>
@@ -684,21 +683,25 @@ export default function MeterTable({
             <div className="space-y-3 mb-4">
               <div>
                 <p className="text-xs text-zinc-400 mb-2">날짜 범위 (비우면 전체)</p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-1.5">
                   <input
                     type="date"
                     value={downloadDateFrom}
                     max={downloadDateTo || undefined}
                     onChange={(e) => setDownloadDateFrom(e.target.value)}
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors"
                   />
-                  <span className="text-zinc-600 text-xs shrink-0">~</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-px bg-zinc-700" />
+                    <span className="text-zinc-600 text-xs">~</span>
+                    <div className="flex-1 h-px bg-zinc-700" />
+                  </div>
                   <input
                     type="date"
                     value={downloadDateTo}
                     min={downloadDateFrom || undefined}
                     onChange={(e) => setDownloadDateTo(e.target.value)}
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-400 transition-colors"
                   />
                 </div>
               </div>
