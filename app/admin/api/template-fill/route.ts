@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import JSZip from "jszip";
 import type { MeterRecord } from "@/app/admin/meter/_actions";
 
+export const maxDuration = 60;
+
 // ─── 기존 형식 컬럼 ────────────────────────────────────────────────────────────
 const C = {
   ROW_NO: "B",
@@ -194,20 +196,28 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
   // 부분 입력 레코드도 byPos 매핑에 포함 (6개 필드 완료 여부와 무관하게 survey_date 있는 것 전부)
-  const { data, error } = await admin
-    .from("meter_records")
-    .select("*")
-    .or(
-      "meter_number.not.is.null,reading.not.is.null,sealed.not.is.null,location.not.is.null,usage_type.not.is.null,floor.not.is.null,note.eq.호폐,note.eq.위치불명"
-    )
-    .order("block", { ascending: true })
-    .order("row_no", { ascending: true, nullsFirst: false })
-    .range(0, 99999);
+  const PAGE = 5000;
+  const allData: MeterRecord[] = [];
+  let pageFrom = 0;
+  while (true) {
+    const { data, error } = await admin
+      .from("meter_records")
+      .select("*")
+      .or(
+        "meter_number.not.is.null,reading.not.is.null,sealed.not.is.null,location.not.is.null,usage_type.not.is.null,floor.not.is.null,note.eq.호폐,note.eq.위치불명"
+      )
+      .order("block", { ascending: true })
+      .order("row_no", { ascending: true, nullsFirst: false })
+      .range(pageFrom, pageFrom + PAGE - 1);
+    if (error)
+      return new NextResponse("DB 조회 실패: " + error.message, { status: 500 });
+    const page = (data ?? []) as MeterRecord[];
+    allData.push(...page);
+    if (page.length < PAGE) break;
+    pageFrom += PAGE;
+  }
 
-  if (error)
-    return new NextResponse("DB 조회 실패: " + error.message, { status: 500 });
-
-  let records = (data ?? []) as MeterRecord[];
+  let records = allData;
 
   if (dateFrom || dateTo) {
     const isoToDate = (s: string) => {

@@ -60,8 +60,11 @@ export default function MeterTemplateFill() {
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName.replace(/(\.[^.]+)$/, '_작성완료$1');
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setError('처리 중 오류가 발생했습니다.');
     } finally {
